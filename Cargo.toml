@@ -3,5 +3,6 @@
 members = [
     "dns_server",
     "recursive_resolver",
-    "stub_resolver"
+    "stub_resolver",
+    "shared"
 ]
