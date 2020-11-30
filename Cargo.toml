@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "dns_server",
+    "recursive_resolver",
+    "stub_resolver"
+]
