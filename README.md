@@ -8,11 +8,30 @@ Needed:
 `cargo build` in this folder --> all 3 get built into ./target/[debug|release]/
 
 ## to run
+
+### automatic
 `python3 runnAll.py` builds, runs all 3 after another and pipes stdin to the stub, while printing all 3 stdouts with diffrent prefix
 
-## Conventions
+- stdin is piped to stub resolver
+- when exiting stub or by keyboard interrupt, all 3 get terminated
 
-prints start with a prefix to identify from which binary they came
-- [S] = stub
-- [R] = recursive
-- [D] = DNS server
+! runAll.py currently builds as debug build, may be unperformant
+
+### manual
+1. build with `cargo build`
+2. start the three binaries (in seperate shells)
+3. enter domain into stub resolver
+
+## structure
+
+one main lib: `shared`
+
+3 binary projects, each for the specific job
+
+### shared
+
+main struct: `DNSPacket`
+
+can be send via `send_dns_packet()`
+
+cen get received and deserialized via `recv_dns_packet()`
