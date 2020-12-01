@@ -44,7 +44,7 @@ fn main() {
                 }
             };
 
-            // asking successfull, wait for answer with correct id
+            // asking successful, wait for answer with correct id
 
             match wait_for_response(id, &ctx) {
                 Ok(ip) => println!("IP is {:?}", ip),
