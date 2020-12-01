@@ -1,4 +1,4 @@
-use std::net::{IpAddr, UdpSocket};
+use std::net::{IpAddr, SocketAddr, UdpSocket};
 
 use shared::DNSRequestID;
 
@@ -67,18 +67,20 @@ fn ask_resolver(ctx: &mut Context, domain: &str) -> Result<DNSRequestID, &'stati
         flags_response: false,
         qry_name: domain.to_string(),
         qry_type: shared::QueryType::A,
-        answer_a: None
+        answer_a: None,
+        flags_result_code: shared::ResultCode::NOERROR,
+        answer_ns: None
     };
     // increase id
     ctx.next_packet_id.0 += 1;
 
     // fixed recursive resolver addr: 127.0.0.10:53053
     // never fails if ip address is written correctly
-    let rec_addr = shared::RECURSIVE_RESOLVER_ADDR.parse().unwrap();
-    
+    let rec_addr : IpAddr = shared::RECURSIVE_RESOLVER_ADDR.parse().unwrap();
+    let rec_addr : SocketAddr = (rec_addr, shared::PORT).into();
     println!("Sending {:?} -> {:?}", packet, rec_addr);
 
-    shared::send_dns_packet(&ctx.socket, packet, rec_addr)?;
+    shared::send_dns_packet(&ctx.socket, &packet, rec_addr)?;
 
     // return current id
     Ok(id)

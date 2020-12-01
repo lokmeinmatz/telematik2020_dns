@@ -10,6 +10,15 @@ pub enum QueryType {
     A
 }
 
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ResultCode {
+    NOERROR = 0,
+    FORMERR = 1,
+    SERVFAIL = 2,
+    NXDOMAIN = 3,
+    NOTIMP = 4,
+    REFUSED = 5,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DNSPacket {
@@ -21,6 +30,9 @@ pub struct DNSPacket {
     
     #[serde(rename = "dns.flags.recdesired")]
     pub flags_rec_desired: bool,
+    
+    #[serde(rename = "dns.flags.rcode")]
+    pub flags_result_code: ResultCode,
 
     #[serde(rename = "dns.qry.name")]
     pub qry_name: String,
@@ -30,13 +42,16 @@ pub struct DNSPacket {
 
     #[serde(rename = "dns.a")]
     pub answer_a: Option<Ipv4Addr>,
+
+    #[serde(rename = "dns.ns")]
+    pub answer_ns: Option<Ipv4Addr>
 }
 
 
 /// tries to send a udp packet containing the json data to the receiver
-pub fn send_dns_packet(socket: &UdpSocket, packet: DNSPacket, receiver: SocketAddr) -> Result<(), &'static str> {
+pub fn send_dns_packet(socket: &UdpSocket, packet: &DNSPacket, receiver: SocketAddr) -> Result<(), &'static str> {
     // serialize packet
-    let bytes = serde_json::to_vec(&packet).map_err(|_| "failed to serialize packet")?;
+    let bytes = serde_json::to_vec(packet).map_err(|_| "failed to serialize packet")?;
 
     // wait 100ms 
     std::thread::sleep(Duration::from_millis(100));
@@ -62,7 +77,9 @@ pub fn recv_dns_packet(socket: &UdpSocket) -> Result<(DNSPacket, SocketAddr), &'
 }
 
 
-pub const RECURSIVE_RESOLVER_ADDR: &str = "127.0.0.10:53053";
+pub const RECURSIVE_RESOLVER_ADDR: &str = "127.0.0.10";
+pub const ROOT_SERVER_ADDR: &str = "127.0.0.100";
+pub const PORT: u16 = 53053;
 
 
 #[cfg(test)]
