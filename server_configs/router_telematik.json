@@ -1,0 +1,9 @@
+{
+    "ip": "127.0.0.75",
+    "zone": {
+        "router.telematik.": "127.0.0.76",
+        "news.router.telematik.": "127.0.0.77",
+        "shop.router.telematik.": "127.0.0.78"
+    },
+    "delegated": {}
+}

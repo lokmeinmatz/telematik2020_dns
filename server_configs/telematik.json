@@ -1,0 +1,9 @@
+{
+    "ip": "127.0.0.70",
+    "zone": {
+    },
+    "delegated": {
+        "switch.telematik.": "127.0.0.71",
+        "router.telematik.": "127.0.0.75"
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "ip": "127.0.0.71",
+    "zone": {
+        "switch.telematik.": "127.0.0.72",
+        "www.switch.telematik.": "127.0.0.73",
+        "mail.switch.telematik.": "127.0.0.74"
+    },
+    "delegated": {}
+}

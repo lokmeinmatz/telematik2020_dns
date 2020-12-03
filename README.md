@@ -35,3 +35,10 @@ main struct: `DNSPacket`
 can be send via `send_dns_packet()`
 
 cen get received and deserialized via `recv_dns_packet()`
+
+## TODO
+
+- Errorcode needs to be set for response
+- No record handling
+- authorative flag 
+- http proxy in stub resolver

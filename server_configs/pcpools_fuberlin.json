@@ -1,0 +1,12 @@
+{
+    "ip": "127.0.0.21",
+    "zone": {
+        "pcpools.fuberlin.": "127.0.0.22",
+        "linux.pcpools.fuberlin.": "127.0.0.23",
+        "macos.pcpools.fuberlin.": "127.0.0.24",
+        "windows.pcpools.fuberlin.": "127.0.0.25"
+    },
+    "delegated": {
+
+    }
+}

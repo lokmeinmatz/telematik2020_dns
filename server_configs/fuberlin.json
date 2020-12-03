@@ -1,0 +1,10 @@
+{
+    "ip": "127.0.0.20",
+    "zone": {
+
+    },
+    "delegated": {
+        "pcpools.fuberlin.": "127.0.0.21",
+        "homework.fuberlin.": "127.0.0.26"
+    }
+}

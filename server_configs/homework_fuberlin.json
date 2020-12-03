@@ -1,0 +1,12 @@
+{
+    "ip": "127.0.0.26",
+    "zone": {
+        "homework.fuberlin.": "127.0.0.27",
+        "easy.homework.fuberlin.": "127.0.0.28",
+        "hard.homework.fuberlin.": "127.0.0.29"
+
+    },
+    "delegated": {
+
+    }
+}

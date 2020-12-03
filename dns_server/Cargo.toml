@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 shared = { path = "../shared" }
+serde_json = "*"
+serde = "*"
