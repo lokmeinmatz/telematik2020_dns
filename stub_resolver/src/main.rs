@@ -1,40 +1,117 @@
-use std::net::{IpAddr, SocketAddr, UdpSocket};
-
 use shared::DNSRequestID;
-
-
-
-
+use std::net::{IpAddr, SocketAddr, UdpSocket};
 
 struct Context {
     socket: UdpSocket,
-    next_packet_id: DNSRequestID
+    next_packet_id: DNSRequestID,
 }
 
-fn main() {
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Client, Method, Request, Response, Server};
+use std::convert::Infallible;
+use tokio;
+
+type HttpClient = Client<hyper::client::HttpConnector>;
+
+#[tokio::main]
+async fn http_proxy() {
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8100));
+    let client = HttpClient::new();
+
+    let make_service = make_service_fn(move |_| {
+        let client = client.clone();
+        async move { Ok::<_, Infallible>(service_fn(move |req| proxy(client.clone(), req))) }
+    });
+
+    let server = Server::bind(&addr).serve(make_service);
+
+    println!("Listening on http://{}", addr);
+
+    if let Err(e) = server.await {
+        eprintln!("server error: {}", e);
+    }
+}
+
+async fn proxy(client: HttpClient, mut req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
+    println!("req: {:?}", req.uri().to_string());
+
+    if req.uri().host().is_some()
+        && (req.uri().host().unwrap().contains(".telematik")
+            || req.uri().host().unwrap().contains(".fuberlin"))
+    {
+        println!("Resolving {}...", req.uri());
+        // ask recursive resolver about domain
+        // create context
+        let mut ctx = Context {
+            socket: UdpSocket::bind("127.0.0.2:53053").expect("Failed to bind stub udp socket"),
+            next_packet_id: DNSRequestID(1),
+        };
+
+        let mut domain = String::new();
+        let id = match ask_resolver(&mut ctx, &domain) {
+            Ok(id) => id,
+            Err(e) => {
+                println!("ask_resolver failed: {}", e);
+                let mut response = Response::new(Body::empty());
+                *response.body_mut() = Body::from("failed to resolve");
+                return Ok(response);
+            }
+        };
+
+        // asking successful, wait for answer with correct id
+
+        match wait_for_response(id, &ctx) {
+            Ok(ip) => {
+                println!("IP is {:?}", ip);
+
+                let socket = SocketAddr::new(ip, 8000);
+
+                let mut uri = hyper::http::Uri::builder()
+                    .scheme(req.uri().scheme_str().unwrap())
+                    .authority(socket.to_string().as_str())
+                    .path_and_query(req.uri().path_and_query().unwrap().as_str())
+                    .build()
+                    .unwrap();
+                *req.uri_mut() = uri;
+                client.request(req).await
+            }
+            Err(e) => {
+                println!("Error: {:?}", e);
+                let mut response = Response::new(Body::empty());
+                *response.body_mut() = Body::from("failed to resolve");
+                return Ok(response);
+            }
+        }
+    } else {
+        client.request(req).await
+    }
+}
+
+pub fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "http" {
+        http_proxy();
+    }
+
     println!("Hello from Stub");
 
     // create context
     let mut ctx = Context {
         socket: UdpSocket::bind("127.0.0.2:53053").expect("Failed to bind stub udp socket"),
-        next_packet_id: DNSRequestID(1)
+        next_packet_id: DNSRequestID(1),
     };
-
 
     loop {
         println!("Enter domain to resolve. enter `exit` to exit.");
-        
         let mut domain = String::new();
-        
         if let Ok(_) = std::io::stdin().read_line(&mut domain) {
-            
             let domain = domain.trim(); // remove newline
-            // exit
-            if domain.eq_ignore_ascii_case("exit") { break };
+                                        // exit
+            if domain.eq_ignore_ascii_case("exit") {
+                break;
+            };
 
             println!("Resolving {}...", domain);
-            
-            
             // ask recursive resolver about domain
             let id = match ask_resolver(&mut ctx, &domain) {
                 Ok(id) => id,
@@ -48,9 +125,8 @@ fn main() {
 
             match wait_for_response(id, &ctx) {
                 Ok(ip) => println!("IP is {:?}", ip),
-                Err(e) => println!("Error: {:?}", e)
+                Err(e) => println!("Error: {:?}", e),
             }
-            
         }
     }
 
@@ -69,15 +145,15 @@ fn ask_resolver(ctx: &mut Context, domain: &str) -> Result<DNSRequestID, &'stati
         qry_type: shared::QueryType::A,
         answer_a: None,
         flags_result_code: shared::ResultCode::NOERROR,
-        answer_ns: None
+        answer_ns: None,
     };
     // increase id
     ctx.next_packet_id.0 += 1;
 
     // fixed recursive resolver addr: 127.0.0.10:53053
     // never fails if ip address is written correctly
-    let rec_addr : IpAddr = shared::RECURSIVE_RESOLVER_ADDR.parse().unwrap();
-    let rec_addr : SocketAddr = (rec_addr, shared::PORT).into();
+    let rec_addr: IpAddr = shared::RECURSIVE_RESOLVER_ADDR.parse().unwrap();
+    let rec_addr: SocketAddr = (rec_addr, shared::PORT).into();
     println!("Sending {:?} -> {:?}", packet, rec_addr);
 
     shared::send_dns_packet(&ctx.socket, &packet, rec_addr)?;
@@ -85,7 +161,6 @@ fn ask_resolver(ctx: &mut Context, domain: &str) -> Result<DNSRequestID, &'stati
     // return current id
     Ok(id)
 }
-
 
 /// wait for a response with that id. if the next response is not for that request, returns error
 fn wait_for_response(id: DNSRequestID, ctx: &Context) -> Result<IpAddr, &'static str> {
@@ -99,5 +174,8 @@ fn wait_for_response(id: DNSRequestID, ctx: &Context) -> Result<IpAddr, &'static
     }
 
     // convert the ipv4 address to a genereic ip address or fail if no A record was provided
-    packet.answer_a.map(|addr| IpAddr::V4(addr)).ok_or("no ip address in answer")
+    packet
+        .answer_a
+        .map(|addr| IpAddr::V4(addr))
+        .ok_or("no ip address in answer")
 }

@@ -1,10 +1,15 @@
 [package]
-name = "stub_resolver"
-version = "0.1.0"
 authors = ["lokmeinmatz <matze.kind@web.de>", "docweirdo corin.baurmann@fu-berlin.de"]
 edition = "2018"
+name = "stub_resolver"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-shared = { path = "../shared" }
+futures = "0.3"
+hyper = "0.13"
+shared = {path = "../shared"}
+tokio = {version = "0.2", features = [
+  "full",
+]}
