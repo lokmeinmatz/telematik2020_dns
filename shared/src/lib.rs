@@ -3,7 +3,7 @@ use std::{time::Duration, net::{Ipv4Addr, SocketAddr, UdpSocket}};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
-pub struct DNSRequestID(pub u32);
+pub struct DNSRequestID(pub u64);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum QueryType {

@@ -77,7 +77,7 @@ if build_res.returncode == 0:
 
         rec_res = subprocess.Popen(["./target/debug/recursive_resolver"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         rec_res.prefix = "recr"
-        stub_res = subprocess.Popen(["./target/debug/stub_resolver"], stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stub_res = subprocess.Popen(["./target/debug/stub_resolver", "http"], stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stub_res.prefix = "stub"
 
 
