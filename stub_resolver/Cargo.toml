@@ -8,7 +8,7 @@ version = "0.1.0"
 
 [dependencies]
 futures = "0.3"
-hyper = "0.13"
+hyper = "0.13.9"
 shared = {path = "../shared"}
 tokio = {version = "0.2", features = [
   "full",
