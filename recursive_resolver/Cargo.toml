@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 shared = { path = "../shared" }
+tokio = "*"
