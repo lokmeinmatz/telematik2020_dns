@@ -1,5 +1,5 @@
-use std::{time::Duration, net::{Ipv4Addr, SocketAddr, UdpSocket}};
-
+use std::{time::Duration, net::{Ipv4Addr, SocketAddr}};
+use tokio::net::UdpSocket;
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
@@ -34,6 +34,9 @@ pub struct DNSPacket {
     #[serde(rename = "dns.flags.rcode")]
     pub flags_result_code: ResultCode,
 
+    #[serde(rename = "dns.flags.authorative")]
+    pub flags_authorative: bool,
+
     #[serde(rename = "dns.qry.name")]
     pub qry_name: String,
 
@@ -44,12 +47,44 @@ pub struct DNSPacket {
     pub answer_a: Option<Ipv4Addr>,
 
     #[serde(rename = "dns.ns")]
-    pub answer_ns: Option<Ipv4Addr>
+    pub answer_ns: Option<Ipv4Addr>,
+
+    #[serde(rename = "dns.resp.ttl")]
+    pub resp_ttl: Option<std::time::Duration>,
 }
 
+impl std::fmt::Display for DNSPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{ id: {}, qry.name: {}, qry.type: {:?}", self.id.0, self.qry_name, self.qry_type)?;
+        
+        if self.flags_response {
+            write!(f, ", response {:?} {}", 
+                self.flags_result_code,
+                if self.flags_authorative { "authorative" } else { "non-authorative" }
+            )?;
+        }
+
+        if let Some(ttl) = self.resp_ttl {
+            write!(f, ", ttl: {:.0}s", ttl.as_secs_f32())?;
+        }
+
+        if self.flags_rec_desired {
+            write!(f, ", rec_desired")?;
+        }
+
+        if let Some(a) = self.answer_a {
+            write!(f, ", A: {}", a)?;
+        }
+        if let Some(ns) = self.answer_ns {
+            write!(f, ", NS: {}", ns)?;
+        }
+
+        write!(f, " }}")
+    }
+}
 
 /// tries to send a udp packet containing the json data to the receiver
-pub fn send_dns_packet(socket: &UdpSocket, packet: &DNSPacket, receiver: SocketAddr) -> Result<(), &'static str> {
+pub async fn send_dns_packet(socket: &mut UdpSocket, packet: &DNSPacket, receiver: SocketAddr) -> Result<(), &'static str> {
     // serialize packet
     let bytes = serde_json::to_vec(packet).map_err(|_| "failed to serialize packet")?;
 
@@ -57,17 +92,17 @@ pub fn send_dns_packet(socket: &UdpSocket, packet: &DNSPacket, receiver: SocketA
     std::thread::sleep(Duration::from_millis(100));
 
     // send bytes
-    socket.send_to(&bytes, receiver).map(drop).map_err(|_| "Failed to send over udp")
+    socket.send_to(&bytes, receiver).await.map(drop).map_err(|_| "Failed to send over udp")
 }
 
 
 /// interprets the next udp packet as our `DNSPacket` and returns it together with the address of the sender
-pub fn recv_dns_packet(socket: &UdpSocket) -> Result<(DNSPacket, SocketAddr), &'static str> {
+pub async fn recv_dns_packet(socket: &mut UdpSocket) -> Result<(DNSPacket, SocketAddr), &'static str> {
     // creates 32kb buffer, is this enough?
     let mut buffer = Box::new([0u8; 1024 * 32]);
 
     // receive udp packet into buffer
-    socket.recv_from(&mut buffer[..]).and_then(|(bytes_read, addr)| {
+    socket.recv_from(&mut buffer[..]).await.and_then(|(bytes_read, addr)| {
 
         // deserialize from byte array with length of bytes received
         let packet = serde_json::from_slice(&buffer[0..bytes_read])?;
