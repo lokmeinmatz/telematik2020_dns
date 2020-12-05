@@ -5,21 +5,27 @@ Needed:
 - python (optional) for auto run
 
 ## to build all projects
-`cargo build` in this folder --> all 3 get built into ./target/[debug|release]/
+`cargo build` in this folder --> all 3 get built into ./target/debug/
 
 ## to run
 
 ### automatic
-`python3 runnAll.py` builds, runs all 3 after another and pipes stdin to the stub, while printing all 3 stdouts with diffrent prefix
+`python3 runAll.py`
 
+or `python3 runAll.py build` to first build binaries
+
+- starts an dns server for each file in `server_configs`
 - stdin is piped to stub resolver
-- when exiting stub or by keyboard interrupt, all 3 get terminated
+- when exiting stub or by keyboard interrupt, all get terminated
 
 ! runAll.py currently builds as debug build, may be unperformant
 
 ### manual
 1. build with `cargo build`
 2. start the three binaries (in seperate shells)
+ - DNS server: `./target/debug/dns_server <config_name>.json`
+ - recursive resolver: `./target/debug/recursive_resolver`
+ - stub: `./target/debug/stub_resolver interactive proxy` (or leave out either one to only use one mode)
 3. enter domain into stub resolver
 
 ## structure
@@ -38,7 +44,5 @@ cen get received and deserialized via `recv_dns_packet()`
 
 ## TODO
 
-- Errorcode needs to be set for response
-- No record handling
 - authorative flag 
 - http proxy in stub resolver
