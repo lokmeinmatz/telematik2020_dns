@@ -10,3 +10,4 @@ edition = "2018"
 shared = { path = "../shared" }
 serde_json = "*"
 serde = "*"
+tokio = "*"

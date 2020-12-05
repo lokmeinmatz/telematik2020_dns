@@ -1,6 +1,7 @@
-use std::net::{Ipv4Addr, UdpSocket};
+use std::{time::Duration, net::{Ipv4Addr}};
+use tokio::net::UdpSocket;
 use serde_json;
-use shared::DNSPacket;
+use shared::{DNSPacket, ResultCode};
 use std::io::Read;
 use std::str::FromStr;
 use serde::Deserialize;
@@ -12,7 +13,8 @@ struct ServerConfig {
     ip: Ipv4Addr
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
 
     
 
@@ -22,8 +24,8 @@ fn main() {
         panic!("config needs json format");
     }
 
-    let server_name = &config_name[..config_name.len() - 5];
-    println!("Hello from DNS Server {}", server_name);
+    //let server_name = &config_name[..config_name.len() - 5];
+    //println!("Hello from DNS Server {}", server_name);
 
     // load server config from server_configs/<path>
     let server_config: ServerConfig = {
@@ -60,18 +62,18 @@ fn main() {
     println!("Zone config: {:?}", server_config);
 
     // bind to 127.0.0.100:53053
-    let socket_in = UdpSocket::bind((server_config.ip, shared::PORT)).expect("Failed to bind recursive to fixed addr in");
+    let mut socket_in = UdpSocket::bind((server_config.ip, shared::PORT)).await.expect("Failed to bind recursive to fixed addr in");
 
 
     loop {
         // receive packet
 
-        let (req_packet, req_sender) = match shared::recv_dns_packet(&socket_in) {
+        let (req_packet, req_sender) = match shared::recv_dns_packet(&mut socket_in).await {
             Err(e) => {println!("Error while receiving packet: {}", e); continue },
             Ok(r) => r
         };
 
-        println!("Received {:?} from {:?}", req_packet, req_sender);
+        println!("Received {} from {:?}", req_packet, req_sender);
 
         let mut answer_packet = DNSPacket {
             flags_response: true,
@@ -86,6 +88,8 @@ fn main() {
         for (domain, ip) in &server_config.zone {
             if &answer_packet.qry_name == domain {
                 answer_packet.answer_a = Some(*ip);
+                answer_packet.flags_authorative = true;
+                answer_packet.resp_ttl = Some(Duration::from_secs(10));
                 break;
             }
         }
@@ -96,9 +100,14 @@ fn main() {
                 }
             }
         }
+
+        // set error if no DNS entry is found
+        if answer_packet.answer_ns.is_none() && answer_packet.answer_a.is_none() {
+            answer_packet.flags_result_code = ResultCode::NXDOMAIN;
+        }
         
-        println!("sending response {:?}", answer_packet);
-        shared::send_dns_packet(&socket_in, &answer_packet, req_sender).unwrap();
+        println!("sending response {}", answer_packet);
+        shared::send_dns_packet(&mut socket_in, &answer_packet, req_sender).await.unwrap();
     }
 
 }
