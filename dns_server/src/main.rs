@@ -2,7 +2,7 @@ use std::{time::Duration, net::{Ipv4Addr}};
 use tokio::net::UdpSocket;
 use serde_json;
 use shared::{DNSPacket, ResultCode};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::str::FromStr;
 use serde::Deserialize;
 
@@ -14,7 +14,7 @@ struct ServerConfig {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ! {
 
     
 
@@ -24,7 +24,7 @@ async fn main() {
         panic!("config needs json format");
     }
 
-    //let server_name = &config_name[..config_name.len() - 5];
+    let server_name = &config_name[..config_name.len() - 5];
     //println!("Hello from DNS Server {}", server_name);
 
     // load server config from server_configs/<path>
@@ -65,6 +65,9 @@ async fn main() {
     let mut socket_in = UdpSocket::bind((server_config.ip, shared::PORT)).await.expect("Failed to bind recursive to fixed addr in");
 
 
+    let mut log_file = std::fs::OpenOptions::new().truncate(true).create(true).write(true)
+        .open(format!("./logs/{}_{}.log", server_name, server_config.ip)).expect("failed to open log file");
+    let mut req_count: u64 = 0;
     loop {
         // receive packet
 
@@ -74,7 +77,6 @@ async fn main() {
         };
 
         println!("Received {} from {:?}", req_packet, req_sender);
-
         let mut answer_packet = DNSPacket {
             flags_response: true,
             answer_a: None,
@@ -108,6 +110,17 @@ async fn main() {
         
         println!("sending response {}", answer_packet);
         shared::send_dns_packet(&mut socket_in, &answer_packet, req_sender).await.unwrap();
+        req_count += 1;
+        // log
+        let time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap();
+        writeln!(log_file, "{}|{}|{}|{}|{}|{}", 
+            time.as_secs(), // timestamp
+            req_sender.ip(),// ip
+            0,              // reqs send (server dont send requests?)
+            req_count,      // reqs received
+            req_count,      // responses send, same as requests received?!
+            0               // responses received, 0 because dont send any requests
+        ).expect("Failed to write log");
     }
 
 }

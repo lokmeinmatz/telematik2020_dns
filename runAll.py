@@ -4,7 +4,9 @@ import time
 import threading
 import sys
 import os
+import http.server
 
+import socketserver
 
 # script to build and run all instances in order
 
@@ -22,6 +24,21 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
+# serves index.html
+class IndexHTTPHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/':
+            self.path = 'index.html'
+        return http.server.SimpleHTTPRequestHandler.do_GET(self)
+
+# serve index.html on diffrent thread
+# call TCPserver.shutdown and then server_close to terminate
+def serve_sample_page(addr, port) -> (socketserver.TCPServer, threading.Thread):
+    server = socketserver.TCPServer((addr, port), IndexHTTPHandler)
+    sthread = threading.Thread(target=server.serve_forever)
+    sthread.start()
+    return (server, sthread)
+
 # call threaded, listenes to stdout of process and prints with prefix
 def poll_subprocess(proc: subprocess.Popen):
     ret = None
@@ -38,23 +55,38 @@ print("Starting local dns system...")
 
 # optional build project
 build_res = None
-if "build" in sys.argv:
+if "--build" in sys.argv:
     # add switch so is not allways build
     print("Building binaries...")
     build_res = subprocess.run(["cargo", "build"])
 else:
-    # check if binaries exist
-    bins = ["./target/debug/dns_server", "./target/debug/recursive_resolver", "./target/debug/stub_resolver"]
-    for binpath in bins:
-        if not os.path.exists(binpath):
-            print(f"Binary {binpath} doesn't exist. Try running python3 runAll.py build to first build the programs.")
-            sys.exit(-1)
+    print("Skipping build. Call runAll.py --build to force rebuild (needs rust installed)")
+
+# check if binaries exist
+bins = [
+    "./target/debug/dns_server", 
+    "./target/debug/recursive_resolver", 
+    "./target/debug/stub_resolver"
+]
+
+# add .exe to ends if is on windows
+if os.name == "nt":
+    bins = map(lambda exe: exe + ".exe", bins)
+    print(bins)
+
+for binpath in bins:
+    if not os.path.exists(binpath):
+        print(f"Binary {binpath} doesn't exist. Try running python3 runAll.py --build to first build the programs.")
+        sys.exit(-1)
+print("all binaries exist")
 
 
 
 
 if build_res == None or build_res.returncode == 0:
     try:
+
+
         # read all dns configs and start a server for each
         dns_servers = []
         for cfg in os.listdir('./server_configs'):
@@ -71,7 +103,10 @@ if build_res == None or build_res.returncode == 0:
 
         rec_res = subprocess.Popen(["./target/debug/recursive_resolver"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         rec_res.prefix = "recr"
-        stub_res = subprocess.Popen(["./target/debug/stub_resolver", "interactive", "proxy"], stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stub_args = ["interactive"]
+        if "--proxy" in sys.argv:
+            stub_args.append("proxy")
+        stub_res = subprocess.Popen(["./target/debug/stub_resolver"] + stub_args, stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stub_res.prefix = "stub"
 
 
@@ -82,6 +117,10 @@ if build_res == None or build_res.returncode == 0:
             t = threading.Thread(target=poll_subprocess, args=[proc])
             t.start()
             stdout_threads.append(t)
+
+        if "--proxy" in sys.argv:
+            # start http index.html server for router.telematik
+            httpserver, httpthread = serve_sample_page("127.0.0.76", 80)
 
         # wait until first thread finsihed, then kill all others
         while True:
@@ -96,8 +135,13 @@ if build_res == None or build_res.returncode == 0:
     except KeyboardInterrupt:
         print("exit via python")
     finally:
-
+        if "--proxy" in sys.argv:
+            httpserver.shutdown()
+            httpserver.server_close()
+            print("Requested HTTP server shutdown, waiting for thread to terminate...")
+            httpthread.join()
         
+        print("terminating all...")
         stub_res.terminate()
         rec_res.terminate()
         for server in dns_servers:

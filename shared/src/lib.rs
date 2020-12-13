@@ -115,12 +115,3 @@ pub async fn recv_dns_packet(socket: &mut UdpSocket) -> Result<(DNSPacket, Socke
 pub const RECURSIVE_RESOLVER_ADDR: &str = "127.0.0.10";
 pub const ROOT_SERVER_ADDR: &str = "127.0.0.100";
 pub const PORT: u16 = 53053;
-
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}

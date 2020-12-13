@@ -25,7 +25,7 @@ async fn http_proxy() {
 
     let server = Server::bind(&addr).serve(make_service);
 
-    println!("Listening on http://{}", addr);
+    println!("http proxy listening on http://{}", addr);
 
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);
@@ -35,52 +35,50 @@ async fn http_proxy() {
 async fn proxy(client: HttpClient, mut req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     println!("req: {:?}", req.uri().to_string());
 
-    if req.uri().host().is_some()
-        && (req.uri().host().unwrap().contains(".telematik")
-            || req.uri().host().unwrap().contains(".fuberlin"))
-    {
-        println!("Resolving {}...", req.uri().authority().unwrap().as_str());
-        // binds port dynamically
-        let mut socket = UdpSocket::bind("127.0.0.2:0").await.expect("Failed to bind stub udp socket");
-
-        let mut domain = req.uri().authority().unwrap().as_str().to_owned();
-        
-        let id = match ask_resolver(&mut socket, &mut domain).await {
-            Ok(id) => id,
-            Err(e) => {
-                println!("ask_resolver failed: {}", e);
-                let mut response = Response::new(Body::empty());
-                *response.body_mut() = Body::from("failed to resolve");
-                return Ok(response);
+    match req.uri().host() {
+        Some(host) if host.contains(".telematik") || host.contains(".fuberlin") => {
+            println!("Resolving {}...", req.uri().authority().unwrap().as_str());
+            // binds port dynamically
+            let mut socket = UdpSocket::bind("127.0.0.2:0").await.expect("Failed to bind stub udp socket");
+    
+            let mut domain = req.uri().authority().unwrap().as_str().to_owned();
+            
+            let id = match ask_resolver(&mut socket, &mut domain).await {
+                Ok(id) => id,
+                Err(e) => {
+                    println!("ask_resolver failed: {}", e);
+                    let mut response = Response::new(Body::empty());
+                    *response.body_mut() = Body::from("failed to resolve");
+                    return Ok(response);
+                }
+            };
+    
+            // asking successful, wait for answer with correct id
+    
+            match wait_for_response(id, &mut socket).await {
+                Ok(ip) => {
+                    println!("IP is {:?}", ip);
+    
+                    let socket = SocketAddr::new(ip, 80);
+    
+                    let uri = hyper::http::Uri::builder()
+                        .scheme(req.uri().scheme_str().unwrap())
+                        .authority(socket.to_string().as_str())
+                        .path_and_query(req.uri().path_and_query().unwrap().as_str())
+                        .build()
+                        .unwrap();
+                    *req.uri_mut() = uri;
+                    client.request(req).await
+                }
+                Err(e) => {
+                    println!("Error: {:?}", e);
+                    let mut response = Response::new(Body::empty());
+                    *response.body_mut() = Body::from("failed to resolve");
+                    return Ok(response);
+                }
             }
-        };
-
-        // asking successful, wait for answer with correct id
-
-        match wait_for_response(id, &mut socket).await {
-            Ok(ip) => {
-                println!("IP is {:?}", ip);
-
-                let socket = SocketAddr::new(ip, 8000);
-
-                let uri = hyper::http::Uri::builder()
-                    .scheme(req.uri().scheme_str().unwrap())
-                    .authority(socket.to_string().as_str())
-                    .path_and_query(req.uri().path_and_query().unwrap().as_str())
-                    .build()
-                    .unwrap();
-                *req.uri_mut() = uri;
-                client.request(req).await
-            }
-            Err(e) => {
-                println!("Error: {:?}", e);
-                let mut response = Response::new(Body::empty());
-                *response.body_mut() = Body::from("failed to resolve");
-                return Ok(response);
-            }
-        }
-    } else {
-        client.request(req).await
+        },
+        _ => client.request(req).await
     }
 }
 
