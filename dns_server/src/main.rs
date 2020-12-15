@@ -91,7 +91,7 @@ async fn main() -> ! {
             if &answer_packet.qry_name == domain {
                 answer_packet.answer_a = Some(*ip);
                 answer_packet.flags_authorative = true;
-                answer_packet.resp_ttl = Some(Duration::from_secs(10));
+                answer_packet.resp_ttl = Some(Duration::from_secs(20));
                 break;
             }
         }

@@ -71,16 +71,17 @@ bins = [
 
 # add .exe to ends if is on windows
 if os.name == "nt":
-    bins = map(lambda exe: exe + ".exe", bins)
-    print(bins)
+    bins = list(map(lambda exe: exe + ".exe", bins))
 
+print(bins)
 for binpath in bins:
     if not os.path.exists(binpath):
         print(f"Binary {binpath} doesn't exist. Try running python3 runAll.py --build to first build the programs.")
         sys.exit(-1)
 print("all binaries exist")
-
-
+dns_bin = bins[0]
+rec_bin = bins[1]
+stub_bin = bins[2]
 
 
 if build_res == None or build_res.returncode == 0:
@@ -96,17 +97,17 @@ if build_res == None or build_res.returncode == 0:
                 
             server_name = cfg.split('.')[0]
             print(f"starting dns server {server_name}...")
-            server = subprocess.Popen(["./target/debug/dns_server", cfg], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            server = subprocess.Popen([dns_bin, cfg], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             server.prefix = server_name
             dns_servers.append(server)
 
 
-        rec_res = subprocess.Popen(["./target/debug/recursive_resolver"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        rec_res = subprocess.Popen([rec_bin], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         rec_res.prefix = "recr"
         stub_args = ["interactive"]
         if "--proxy" in sys.argv:
             stub_args.append("proxy")
-        stub_res = subprocess.Popen(["./target/debug/stub_resolver"] + stub_args, stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stub_res = subprocess.Popen([stub_bin] + stub_args, stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stub_res.prefix = "stub"
 
 

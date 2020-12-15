@@ -1,5 +1,9 @@
 # telematik2020_dns
 
+Project by Matthias Kind, Corin Bauermann, Karl Skomski, Justus Purat
+
+github repo: https://github.com/lokmeinmatz/telematik2020_dns
+
 ## to run
 
 ### automatic
@@ -9,6 +13,9 @@ test usage: `python3 runAll.py --proxy`
 
 Now you can enter a domain inside the terminal or connect to the proxy
 on `127.0.0.1:8100` and request `router.telematik` to get the index.html served.
+
+to terminate, type exit in the console or press ctrl + c
+all processes should get terminated
 
 #### Flags
 - `--build` to first build binaries via cargo
@@ -56,6 +63,8 @@ loads `ServerConfig` from `./server_configs/` and the json file specified as the
 
 listenes for dns requests and checks wether they are in it's zome / delegated area
 sends response and logs data
+
+all responses have 20 secs ttl
 
 ### logs
 contains a log file for each server, with zone name and ip as name
