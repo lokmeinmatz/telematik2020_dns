@@ -44,8 +44,10 @@ one main lib: `shared`
 
 main struct: `DNSPacket`
 
-can be send via `send_dns_packet()`, where the delay is configured
+- Has most of the required fields in as well as the matching json keys, except dns.srv.*, because we don't use them and sending empty fields was uneccessary.
 
+can be send via `send_dns_packet()`, where the delay is configured
+`send_dns_packet()` generates a unique id that `recv_dns_packet` checks
 cen get received and deserialized via `recv_dns_packet()`
 
 ### dns_server
